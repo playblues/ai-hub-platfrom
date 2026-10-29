@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Hub Platform — Text Summarizer</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-bold text-slate-950 text-lg shadow-lg shadow-emerald-500/20">
+          AI
+        </div>
+        <div>
+          <h1 class="text-lg font-semibold tracking-tight text-white">AI Hub Platform</h1>
+          <p class="text-xs text-slate-400">Microservice Architecture Prototype</p>
+        </div>
+      </div>
+      
+      <!-- API Status indicator -->
+      <div class="flex items-center gap-4">
+        <div id="healthBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700/60 transition-all">
+          <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse" id="healthDot"></span>
+          <span id="healthText">Checking API...</span>
+        </div>
+        <a href="/metrics" target="_blank" class="text-xs text-slate-400 hover:text-emerald-400 transition underline underline-offset-4">
+          Prometheus Metrics
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-10 flex flex-col gap-8">
+
+    <!-- Hero section -->
+    <div class="text-center space-y-3">
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        🚀 Kubernetes Ready • High-Performance Go
+      </span>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 tracking-tight">
+        Умная суммаризация текста
+      </h2>
+      <p class="text-slate-400 text-sm sm:text-base max-w-xl mx-auto">
+        Вставьте любой длинный текст, статью или заметку. Наш микросервис выделит ключевые тезисы за доли секунды.
+      </p>
+    </div>
+
+    <!-- Summarization Card -->
+    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-2xl shadow-black/40 backdrop-blur-xl">
+      <form id="summarizeForm" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <label for="inputText" class="text-sm font-medium text-slate-300">
+            Исходный текст
+          </label>
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span>Язык ответа:</span>
+            <select id="languageSelect" class="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-slate-200 focus:outline-none focus:border-emerald-500 text-xs cursor-pointer">
+              <option value="ru" selected>Русский (ru)</option>
+              <option value="en">English (en)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="relative">
+          <textarea
+            id="inputText"
+            rows="6"
+            required
+            placeholder="Вставьте сюда текст для анализа (например, тезисы встречи, статью или описание проекта)..."
+            class="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-4 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/80 transition resize-y"
+          ></textarea>
+          <div class="absolute bottom-3 right-3 text-xs text-slate-500" id="charCounter">
+            0 символов
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button
+            type="button"
+            id="sampleBtn"
+            class="text-xs text-slate-400 hover:text-emerald-400 transition hover:underline"
+          >
+            Вставить пример текста
+          </button>
+
+          <button
+            type="submit"
+            id="submitBtn"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 transition shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+          >
+            <span id="btnSpinner" class="hidden">
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+            </span>
+            <span id="btnText">Суммаризировать</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Error block -->
+      <div id="errorBlock" class="hidden mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-sm"></div>
+
+      <!-- Result block -->
+      <div id="resultBlock" class="hidden mt-6 pt-6 border-t border-slate-800/80 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Результат суммаризации
+          </h3>
+          <div class="flex items-center gap-2">
+            <span id="providerBadge" class="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700"></span>
+            <span id="statsBadge" class="text-xs text-slate-500"></span>
+          </div>
+        </div>
+
+        <div id="resultText" class="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80 text-sm text-slate-200 leading-relaxed font-sans whitespace-pre-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Architecture details cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+      <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800/70">
+        <div class="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-1">K8s Liveness & Readiness</div>
+        <p class="text-xs text-slate-400">Эндпоинт <code class="text-emerald-300">/healthz</code> возвращает статус приложения для оркестратора.</p>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800/70">
+        <div class="text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-1">Prometheus Metrics</div>
+        <p class="text-xs text-slate-400">Стандартный эндпоинт <code class="text-cyan-300">/metrics</code> готов к сбору метрик в Prometheus.</p>
+      </div>
+      <div class="p-4 rounded-xl bg-slate-900/50 border border-slate-800/70">
+        <div class="text-indigo-400 text-xs font-semibold uppercase tracking-wider mb-1">Telegram Bot Service</div>
+        <p class="text-xs text-slate-400">Сервис бота <code class="text-indigo-300">cmd/bot</code> легко масштабируется и обращается к общему API.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800/60 py-6 text-center text-xs text-slate-500">
+    AI Hub Platform &copy; 2026 • DevOps & Kubernetes Prototype
+  </footer>
+
+  <!-- Client-side Logic -->
+  <script>
+    const form = document.getElementById('summarizeForm');
+    const inputText = document.getElementById('inputText');
+    const charCounter = document.getElementById('charCounter');
+    const languageSelect = document.getElementById('languageSelect');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const btnText = document.getElementById('btnText');
+    const resultBlock = document.getElementById('resultBlock');
+    const resultText = document.getElementById('resultText');
+    const providerBadge = document.getElementById('providerBadge');
+    const statsBadge = document.getElementById('statsBadge');
+    const errorBlock = document.getElementById('errorBlock');
+    const sampleBtn = document.getElementById('sampleBtn');
+    const healthBadge = document.getElementById('healthBadge');
+    const healthDot = document.getElementById('healthDot');
+    const healthText = document.getElementById('healthText');
+
+    // Helper: Send Analytics Event
+    async function sendEvent(type, metadata = {}) {
+      try {
+        await fetch('/api/event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: type,
+            source: 'landing',
+            metadata: metadata,
+          }),
+        });
+      } catch (e) {
+        console.warn('Analytics event dispatch failed:', e);
+      }
+    }
+
+    // Healthcheck ping
+    async function checkHealth() {
+      try {
+        const res = await fetch('/healthz');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'ok') {
+            healthDot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+            healthText.textContent = 'API Online';
+            healthBadge.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            return;
+          }
+        }
+        throw new Error('API degraded');
+      } catch (err) {
+        healthDot.className = 'w-2 h-2 rounded-full bg-rose-500';
+        healthText.textContent = 'API Offline';
+        healthBadge.className = 'inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
+      }
+    }
+
+    // Live character counter
+    inputText.addEventListener('input', () => {
+      charCounter.textContent = `${inputText.value.length} символов`;
+    });
+
+    // Sample button
+    sampleBtn.addEventListener('click', () => {
+      inputText.value = "Kubernetes — это портативная расширяемая платформа с открытым исходным кодом для управления контейнеризированными рабочими нагрузками и сервисами. Она упрощает как декларативную настройку, так и автоматизацию. Платформа имеет большую и быстрорастущую экосистему: сервисы, поддержка и инструменты широко доступны.";
+      charCounter.textContent = `${inputText.value.length} символов`;
+      sendEvent('sample_text_inserted');
+    });
+
+    // Submit handler
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = inputText.value.trim();
+      if (!text) return;
+
+      errorBlock.classList.add('hidden');
+      resultBlock.classList.add('hidden');
+
+      submitBtn.disabled = true;
+      btnSpinner.classList.remove('hidden');
+      btnText.textContent = 'Обработка...';
+
+      // Send click analytics
+      sendEvent('summarize_click', {
+        char_count: text.length,
+        language: languageSelect.value,
+      });
+
+      try {
+        const response = await fetch('/api/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text,
+            language: languageSelect.value,
+          }),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP error ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        resultText.textContent = data.summary;
+        providerBadge.textContent = `Провайдер: ${data.provider.toUpperCase()}`;
+        statsBadge.textContent = `${data.original_length} симв. ➔ ${data.summary_length} симв.`;
+        resultBlock.classList.remove('hidden');
+
+        sendEvent('summarize_success', {
+          provider: data.provider,
+          ratio: (data.summary_length / data.original_length).toFixed(2),
+        });
+      } catch (err) {
+        errorBlock.textContent = `Ошибка: ${err.message}`;
+        errorBlock.classList.remove('hidden');
+        sendEvent('summarize_error', { error: err.message });
+      } finally {
+        submitBtn.disabled = false;
+        btnSpinner.classList.add('hidden');
+        btnText.textContent = 'Суммаризировать';
+      }
+    });
+
+    // Initial page load
+    sendEvent('page_view', { user_agent: navigator.userAgent });
+    checkHealth();
+  </script>
+</body>
+</html>
